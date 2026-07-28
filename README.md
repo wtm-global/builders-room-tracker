@@ -4,6 +4,7 @@ A shared, real-time speaker/topic tracker for recruiting guests for *The Builder
 
 No coding experience required — just following steps and pasting values. Should take about 15–20 minutes.
 
+
 ---
 
 ## Part 1 — Create the database (Firebase)
