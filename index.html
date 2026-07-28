@@ -249,6 +249,7 @@
   <div class="modal">
     <h2 id="modalTitle">Add speaker</h2>
     <div class="field"><label>Speaker name</label><input type="text" id="f_name" placeholder="e.g. Priya Anand"></div>
+    <div class="field"><label>Speaker email</label><input type="email" id="f_email" placeholder="e.g. priya@example.com"></div>
     <div class="field"><label>Topic</label><input type="text" id="f_topic" placeholder="e.g. Moving from IC to engineering manager"></div>
     <div class="field-row">
       <div class="field"><label>Format</label>
@@ -434,6 +435,7 @@ function openModal(entry){
   editingId = entry ? entry.id : null;
   document.getElementById('modalTitle').textContent = entry ? 'Edit speaker' : 'Add speaker';
   document.getElementById('f_name').value = entry ? entry.name || '' : '';
+  document.getElementById('f_email').value = entry ? entry.email || '' : '';
   document.getElementById('f_topic').value = entry ? entry.topic || '' : '';
   document.getElementById('f_format').value = entry ? entry.format || 'Interview' : 'Interview';
   document.getElementById('f_source').value = entry ? entry.source || 'Advocu' : 'Advocu';
@@ -457,6 +459,7 @@ async function handleSave(){
   if(!name){ showToast('Speaker name is required'); return; }
   const data = {
     name,
+    email: document.getElementById('f_email').value.trim(),
     topic: document.getElementById('f_topic').value.trim(),
     format: document.getElementById('f_format').value,
     source: document.getElementById('f_source').value,
@@ -476,6 +479,24 @@ async function handleDelete(id){
   showToast('Speaker removed');
 }
 async function handleStatusChange(id, newStatus){ await updateEntry(id, { status: newStatus }); }
+async function copyEmail(email){
+  try{
+    await navigator.clipboard.writeText(email);
+    showToast('Email copied');
+  }catch(e){
+    // Fallback for browsers/contexts without clipboard API access
+    const ta = document.createElement('textarea');
+    ta.value = email;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); showToast('Email copied'); }
+    catch(e2){ showToast('Could not copy — select and copy manually'); }
+    document.body.removeChild(ta);
+  }
+}
+window.copyEmail = copyEmail;
 window.handleDelete = handleDelete;
 window.handleStatusChange = handleStatusChange;
 window.editEntry = (id) => { const e = entries.find(x=>x.id===id); if(e) openModal(e); };
@@ -522,7 +543,7 @@ function render(){
   empty.style.display = rows.length ? 'none' : 'block';
   body.innerHTML = rows.map(e => `
     <tr>
-      <td data-label="Speaker"><div class="speaker-name">${escapeHtml(e.name)}</div>${e.notes ? `<div class="muted" title="${escapeHtml(e.notes)}">📝 ${escapeHtml(truncate(e.notes,40))}</div>` : ''}</td>
+      <td data-label="Speaker"><div class="speaker-name">${escapeHtml(e.name)}</div>${e.email ? `<div class="muted" style="display:flex;align-items:center;gap:5px;">✉ ${escapeHtml(e.email)}<button class="icon-btn" style="padding:1px 6px;font-size:10px;" onclick="copyEmail('${escapeHtml(e.email).replace(/'/g,"\\'")}')">Copy</button></div>` : ''}${e.notes ? `<div class="muted" title="${escapeHtml(e.notes)}">📝 ${escapeHtml(truncate(e.notes,40))}</div>` : ''}</td>
       <td data-label="Topic" class="topic-cell">${escapeHtml(e.topic)||'<span class="muted">—</span>'}</td>
       <td data-label="Format">${escapeHtml(e.format)}</td>
       <td data-label="Source" class="muted">${escapeHtml(e.source)}</td>
