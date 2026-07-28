@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Builder's Room — Speaker &amp; Topic Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
+
+  :root{
+    --ink: #16233D;
+    --ink-soft: #4A5876;
+    --paper: #FDFCFA;
+    --paper-dim: #F3F1EC;
+    --blueprint: #1E3A5F;
+    --blueprint-line: rgba(143,191,224,0.35);
+    --line: #DFDBD1;
+    --amber: #B9862F;
+    --teal: #2F6F6B;
+    --rose: #A34B4B;
+    --violet: #5C4E8C;
+    --slate: #6B7385;
+    --green: #3E7A4F;
+    --radius: 10px;
+  }
+
+  *{ box-sizing: border-box; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter', system-ui, sans-serif; font-size:14px;
+  }
+
+  header.hero{
+    background: var(--blueprint);
+    background-image:
+      linear-gradient(var(--blueprint-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--blueprint-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: #EAF1F8;
+    padding: 28px 32px 22px;
+    border-bottom: 4px solid var(--amber);
+  }
+  header.hero .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.12em;
+    text-transform:uppercase; color:#B9D3EA; margin-bottom:6px;
+  }
+  header.hero h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:26px;
+    margin:0 0 4px;
+  }
+  header.hero p{ margin:0; color:#C7DAEB; font-size:13.5px; max-width:640px; }
+
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    padding:16px 32px; border-bottom:1px solid var(--line); background:var(--paper);
+    position:sticky; top:0; z-index:5;
+  }
+  .toolbar input[type=text]{
+    font-family:'Inter'; font-size:13.5px; padding:8px 12px; border:1px solid var(--line);
+    border-radius: var(--radius); min-width:220px; background:#fff;
+  }
+  .toolbar select{
+    font-family:'Inter'; font-size:13.5px; padding:8px 10px; border:1px solid var(--line);
+    border-radius: var(--radius); background:#fff;
+  }
+  .spacer{ flex:1; }
+  button{
+    font-family:'Inter'; font-weight:600; font-size:13.5px; cursor:pointer;
+    border-radius: var(--radius); border:1px solid transparent; padding:8px 14px;
+  }
+  .btn-primary{ background:var(--ink); color:#fff; }
+  .btn-primary:hover{ background:#26365A; }
+  .btn-ghost{ background:transparent; color:var(--ink-soft); border:1px solid var(--line); }
+  .btn-ghost:hover{ background:var(--paper-dim); }
+  .status-note{ font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--slate); display:flex; align-items:center; gap:6px; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--slate); }
+  .dot.live{ background:var(--green); }
+  .dot.error{ background:var(--rose); }
+
+  .filters{
+    display:flex; gap:6px; padding:12px 32px 0; flex-wrap:wrap;
+  }
+  .chip{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; padding:5px 10px;
+    border-radius:999px; border:1px solid var(--line); color:var(--ink-soft); cursor:pointer;
+    background:#fff; white-space:nowrap;
+  }
+  .chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  main{ padding: 18px 32px 60px; }
+
+  table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius: var(--radius); overflow:hidden; }
+  thead th{
+    text-align:left; font-family:'IBM Plex Mono', monospace; font-weight:500; font-size:11px;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--slate);
+    padding:10px 12px; border-bottom:1px solid var(--line); background:var(--paper-dim);
+  }
+  tbody td{ padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; font-size:13.5px; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background: #FBFAF7; }
+  .speaker-name{ font-weight:600; color:var(--ink); }
+  .topic-cell{ color:var(--ink-soft); max-width:220px; }
+  .muted{ color:var(--slate); font-family:'IBM Plex Mono', monospace; font-size:12px; }
+
+  .pill-sourced{ background:#EDEDF2; color:var(--slate); }
+  .pill-contacted{ background:#F5E9D4; color:var(--amber); }
+  .pill-confirmed{ background:#E1E8F5; color:#3A5590; }
+  .pill-scheduled{ background:#EAE4F5; color:var(--violet); }
+  .pill-recorded{ background:#DEEEEC; color:var(--teal); }
+  .pill-published{ background:#DFEEE3; color:var(--green); }
+
+  select.status-select{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; border:1px solid var(--line);
+    border-radius:999px; padding:4px 8px; background:#fff;
+  }
+
+  .row-actions{ display:flex; gap:6px; }
+  .icon-btn{
+    background:transparent; border:1px solid var(--line); border-radius:8px; padding:5px 8px;
+    color:var(--ink-soft); font-size:12px;
+  }
+  .icon-btn:hover{ background:var(--paper-dim); }
+  .icon-btn.danger:hover{ background:#F7E7E7; color:var(--rose); border-color:#E3BEBE; }
+
+  .empty-state{ text-align:center; padding:50px 20px; color:var(--slate); }
+  .empty-state .big{ font-family:'Space Grotesk', sans-serif; font-size:18px; color:var(--ink); margin-bottom:6px; }
+
+  .banner{
+    margin:16px 32px 0; padding:12px 14px; border-radius:10px; font-size:13px; line-height:1.4;
+    background:#FBF3E4; border:1px solid #E9D9B4; color:#7A5A1E; display:none;
+  }
+  .banner.show{ display:block; }
+  .banner code{ background:#F3E6C9; padding:1px 5px; border-radius:4px; }
+
+  .signin-screen{
+    min-height:70vh; display:flex; align-items:center; justify-content:center; padding:40px 20px;
+  }
+  .signin-card{
+    max-width:380px; text-align:center; padding:32px 28px; border:1px solid var(--line);
+    border-radius:14px; background:#fff;
+  }
+  .signin-card .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--slate); margin-bottom:10px;
+  }
+  .signin-card h2{ font-family:'Space Grotesk', sans-serif; font-size:19px; margin:0 0 8px; color:var(--ink); }
+  .signin-card p{ color:var(--ink-soft); font-size:13.5px; margin:0 0 20px; line-height:1.5; }
+  .signin-card .btn-primary{ width:100%; padding:10px 14px; }
+  .signin-error{ margin-top:14px; font-size:12.5px; color:var(--rose); display:none; }
+  .signin-error.show{ display:block; }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(22,35,61,0.45); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background:#fff; border-radius:14px; width:100%; max-width:520px; max-height:90vh; overflow:auto;
+    padding:24px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .modal h2{ font-family:'Space Grotesk', sans-serif; font-size:19px; margin:0 0 16px; color:var(--ink); }
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block; font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.05em; color:var(--slate); margin-bottom:5px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%; font-family:'Inter'; font-size:13.5px; padding:9px 10px; border:1px solid var(--line);
+    border-radius:8px; background:#fff;
+  }
+  .field textarea{ resize:vertical; min-height:60px; }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
+
+  .toast{
+    position:fixed; bottom:20px; right:20px; background:var(--ink); color:#fff; padding:10px 16px;
+    border-radius:8px; font-size:13px; opacity:0; transform:translateY(8px); transition:all .25s;
+    z-index:60;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+
+  @media (max-width: 720px){
+    .toolbar, main, header.hero, .banner{ padding-left:16px; padding-right:16px; margin-left:0; margin-right:0; }
+    table thead{ display:none; }
+    table, tbody, tr, td{ display:block; width:100%; }
+    tbody tr{ border-bottom:6px solid var(--paper-dim); padding:10px 0; }
+    tbody td{ border-bottom:none; padding:4px 4px; }
+    tbody td:before{
+      content: attr(data-label); font-family:'IBM Plex Mono', monospace; font-size:10px;
+      text-transform:uppercase; color:var(--slate); display:block; margin-bottom:2px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="eyebrow">Women Techmakers · Shared workspace</div>
+  <h1>The Builder's Room — Speaker &amp; Topic Tracker</h1>
+  <p>One shared list for sourcing, outreach, and scheduling. Everyone recruiting for the series works from this same board — changes sync live, for everyone.</p>
+</header>
+
+<div class="banner" id="configBanner">
+  ⚠️ Firebase isn't configured yet. Open <code>index.html</code>, find <code>FIREBASE_CONFIG</code> near the top of the script, and paste in your project's config. See <code>README.md</code> for the exact steps.
+</div>
+
+<div id="signinScreen" class="signin-screen">
+  <div class="signin-card">
+    <div class="eyebrow">Women Techmakers · Shared workspace</div>
+    <h2>Sign in to open the tracker</h2>
+    <p>Access is limited to Technovation and Iridescent Learning team emails, or approved guest accounts.</p>
+    <button class="btn-primary" id="signinBtn">Sign in with Google</button>
+    <div class="signin-error" id="signinError"></div>
+  </div>
+</div>
+
+<div id="appShell" style="display:none;">
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="Search speaker or topic…">
+  <select id="ownerFilter"><option value="">All owners</option></select>
+  <div class="spacer"></div>
+  <span class="status-note"><span class="dot" id="statusDot"></span><span id="syncNote">Connecting…</span></span>
+  <span class="status-note" id="whoAmI"></span>
+  <button class="btn-ghost" id="signoutBtn">Sign out</button>
+  <button class="btn-primary" id="addBtn">+ Add speaker</button>
+</div>
+
+<div class="filters" id="statusFilters"></div>
+
+<main>
+  <table id="trackerTable">
+    <thead>
+      <tr>
+        <th>Speaker</th><th>Topic</th><th>Format</th><th>Source</th>
+        <th>Status</th><th>Owner</th><th>Episode date</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <div class="big">No speakers yet</div>
+    <div>Add the first one — from an Advocu lead, a referral, or a past IWD speaker.</div>
+  </div>
+</main>
+</div><!-- /appShell -->
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add speaker</h2>
+    <div class="field"><label>Speaker name</label><input type="text" id="f_name" placeholder="e.g. Priya Anand"></div>
+    <div class="field"><label>Topic</label><input type="text" id="f_topic" placeholder="e.g. Moving from IC to engineering manager"></div>
+    <div class="field-row">
+      <div class="field"><label>Format</label>
+        <select id="f_format">
+          <option>Interview</option><option>Ambassador-led workshop</option>
+          <option>Pitch showcase</option><option>Peer roundtable</option>
+          <option>Open Q&A</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Source</label>
+        <select id="f_source">
+          <option>Advocu</option><option>Past IWD/WTM speaker</option>
+          <option>Community referral</option><option>Technovation network</option>
+          <option>Direct outreach</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Status</label>
+        <select id="f_status">
+          <option value="sourced">Sourced</option><option value="contacted">Contacted</option>
+          <option value="confirmed">Confirmed</option><option value="scheduled">Scheduled</option>
+          <option value="recorded">Recorded</option><option value="published">Published</option>
+        </select>
+      </div>
+      <div class="field"><label>Owner (recruiting this speaker)</label><input type="text" id="f_owner" placeholder="e.g. Dana"></div>
+    </div>
+    <div class="field"><label>Episode date (if scheduled)</label><input type="date" id="f_date"></div>
+    <div class="field" id="consentField" style="display:none;">
+      <label>Recording &amp; media consent</label>
+      <select id="f_consent">
+        <option value="not_requested">Not yet requested</option>
+        <option value="requested">Requested, awaiting confirmation</option>
+        <option value="confirmed">Confirmed in writing</option>
+      </select>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="f_notes" placeholder="Anything the next person picking this up should know"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelBtn">Cancel</button>
+      <button class="btn-primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* ======================================================================
+   1) PASTE YOUR FIREBASE CONFIG HERE — see README.md for how to get this
+   ====================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCmV8EB9ah9FWOH5hvUzXJC1Kmzy2Lol50",
+  authDomain: "builders-room-tracker.firebaseapp.com",
+  projectId: "builders-room-tracker",
+  storageBucket: "builders-room-tracker.firebasestorage.app",
+  messagingSenderId: "27317311804",
+  appId: "1:27317311804:web:f912dd2bed11c2551b2639"
+};
+/* ====================================================================== */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const isConfigured = !Object.values(FIREBASE_CONFIG).some(v => String(v).startsWith('YOUR_'));
+if (!isConfigured) document.getElementById('configBanner').classList.add('show');
+
+let db = null, auth = null, unsubscribeSnapshot = null;
+if (isConfigured) {
+  const app = initializeApp(FIREBASE_CONFIG);
+  db = getFirestore(app);
+  auth = getAuth(app);
+}
+const COLLECTION = 'speakers';
+
+/* ---------- Sign-in gate ----------
+   Real access control lives in Firestore security rules (see README),
+   which check the signed-in email against the @technovation.org /
+   @iridescentlearning.org domains plus an `allowlist` collection for
+   guest accounts. This client-side gate just controls what's shown —
+   it is not itself the security boundary. */
+const signinScreen = document.getElementById('signinScreen');
+const appShell = document.getElementById('appShell');
+const signinError = document.getElementById('signinError');
+
+document.getElementById('signinBtn').addEventListener('click', async () => {
+  if (!auth) { showSigninError('Add your Firebase config first — see README.md'); return; }
+  signinError.classList.remove('show');
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch (e) {
+    console.error(e);
+    showSigninError('Sign-in was cancelled or failed. Try again.');
+  }
+});
+document.getElementById('signoutBtn').addEventListener('click', async () => {
+  if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+  await signOut(auth);
+});
+function showSigninError(msg){ signinError.textContent = msg; signinError.classList.add('show'); }
+
+if (auth) {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      signinScreen.style.display = 'none';
+      appShell.style.display = 'block';
+      document.getElementById('whoAmI').textContent = user.email;
+      startListening();
+    } else {
+      appShell.style.display = 'none';
+      signinScreen.style.display = 'flex';
+      if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    }
+  });
+}
+
+let entries = [];
+let editingId = null;
+let activeStatusFilter = 'all';
+
+const STATUS_LABELS = {
+  sourced: 'Sourced', contacted: 'Contacted', confirmed: 'Confirmed',
+  scheduled: 'Scheduled', recorded: 'Recorded', published: 'Published'
+};
+const STATUS_ORDER = ['sourced','contacted','confirmed','scheduled','recorded','published'];
+
+function uidLocal(){ return 'tmp_' + Date.now(); }
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+function setSync(state, text){
+  document.getElementById('statusDot').className = 'dot ' + state;
+  document.getElementById('syncNote').textContent = text;
+}
+
+/* ---------- Firestore wiring ---------- */
+function startListening(){
+  if (!db) { setSync('error', 'Not connected — add your Firebase config'); return; }
+  setSync('', 'Connecting…');
+  unsubscribeSnapshot = onSnapshot(collection(db, COLLECTION), (snap) => {
+    entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setSync('live', 'Live · synced with your team');
+    render();
+  }, (err) => {
+    console.error(err);
+    if (err.code === 'permission-denied') {
+      setSync('error', 'Not authorized');
+      appShell.style.display = 'none';
+      signinScreen.style.display = 'flex';
+      showSigninError('This account isn\'t authorized for the tracker. Ask your organizer to add your email to the allowlist.');
+      signOut(auth);
+    } else {
+      setSync('error', 'Sync error — check Firestore rules / config');
+    }
+  });
+}
+
+async function createEntry(data){
+  if(!db){ showToast('Add your Firebase config first — see README.md'); return; }
+  try{
+    await addDoc(collection(db, COLLECTION), { ...data, createdAt: Date.now() });
+  }catch(e){ console.error(e); showToast('Could not save — check Firestore rules'); }
+}
+async function updateEntry(id, data){
+  if(!db) return;
+  try{ await updateDoc(doc(db, COLLECTION, id), data); }
+  catch(e){ console.error(e); showToast('Could not update — check Firestore rules'); }
+}
+async function removeEntry(id){
+  if(!db) return;
+  try{ await deleteDoc(doc(db, COLLECTION, id)); }
+  catch(e){ console.error(e); showToast('Could not delete — check Firestore rules'); }
+}
+
+/* ---------- Modal ---------- */
+function openModal(entry){
+  editingId = entry ? entry.id : null;
+  document.getElementById('modalTitle').textContent = entry ? 'Edit speaker' : 'Add speaker';
+  document.getElementById('f_name').value = entry ? entry.name || '' : '';
+  document.getElementById('f_topic').value = entry ? entry.topic || '' : '';
+  document.getElementById('f_format').value = entry ? entry.format || 'Interview' : 'Interview';
+  document.getElementById('f_source').value = entry ? entry.source || 'Advocu' : 'Advocu';
+  document.getElementById('f_status').value = entry ? entry.status || 'sourced' : 'sourced';
+  document.getElementById('f_owner').value = entry ? entry.owner || '' : '';
+  document.getElementById('f_date').value = entry ? (entry.date || '') : '';
+  document.getElementById('f_notes').value = entry ? (entry.notes || '') : '';
+  document.getElementById('f_consent').value = entry ? (entry.consent || 'not_requested') : 'not_requested';
+  document.getElementById('overlay').classList.add('open');
+  toggleConsentVisibility();
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); editingId = null; }
+function toggleConsentVisibility(){
+  const status = document.getElementById('f_status').value;
+  document.getElementById('consentField').style.display =
+    ['confirmed','scheduled','recorded','published'].includes(status) ? 'block' : 'none';
+}
+
+async function handleSave(){
+  const name = document.getElementById('f_name').value.trim();
+  if(!name){ showToast('Speaker name is required'); return; }
+  const data = {
+    name,
+    topic: document.getElementById('f_topic').value.trim(),
+    format: document.getElementById('f_format').value,
+    source: document.getElementById('f_source').value,
+    status: document.getElementById('f_status').value,
+    owner: document.getElementById('f_owner').value.trim(),
+    date: document.getElementById('f_date').value,
+    notes: document.getElementById('f_notes').value.trim(),
+    consent: document.getElementById('f_consent').value
+  };
+  if(editingId){ await updateEntry(editingId, data); showToast('Speaker updated'); }
+  else{ await createEntry(data); showToast('Speaker added'); }
+  closeModal();
+}
+async function handleDelete(id){
+  if(!confirm('Remove this speaker from the tracker?')) return;
+  await removeEntry(id);
+  showToast('Speaker removed');
+}
+async function handleStatusChange(id, newStatus){ await updateEntry(id, { status: newStatus }); }
+window.handleDelete = handleDelete;
+window.handleStatusChange = handleStatusChange;
+window.editEntry = (id) => { const e = entries.find(x=>x.id===id); if(e) openModal(e); };
+
+/* ---------- Rendering ---------- */
+function renderFilters(){
+  const wrap = document.getElementById('statusFilters');
+  const counts = { all: entries.length };
+  STATUS_ORDER.forEach(s => counts[s] = entries.filter(e=>e.status===s).length);
+  const chips = [['all','All']].concat(STATUS_ORDER.map(s=>[s, STATUS_LABELS[s]]));
+  wrap.innerHTML = chips.map(([key,label]) =>
+    `<span class="chip ${activeStatusFilter===key?'active':''}" data-status="${key}">${label} · ${counts[key]||0}</span>`
+  ).join('');
+  wrap.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ activeStatusFilter = chip.dataset.status; render(); });
+  });
+}
+function renderOwnerFilter(){
+  const sel = document.getElementById('ownerFilter');
+  const current = sel.value;
+  const owners = Array.from(new Set(entries.map(e=>e.owner).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="">All owners</option>' + owners.map(o=>`<option value="${o}">${o}</option>`).join('');
+  sel.value = owners.includes(current) ? current : '';
+}
+function truncate(str,n){ return str.length>n ? str.slice(0,n)+'…' : str; }
+function escapeHtml(str){
+  if(str===undefined || str===null) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function render(){
+  renderFilters();
+  renderOwnerFilter();
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const ownerFilter = document.getElementById('ownerFilter').value;
+  let rows = entries.slice().sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+  if(activeStatusFilter !== 'all') rows = rows.filter(e => e.status === activeStatusFilter);
+  if(ownerFilter) rows = rows.filter(e => e.owner === ownerFilter);
+  if(search) rows = rows.filter(e =>
+    (e.name||'').toLowerCase().includes(search) || (e.topic||'').toLowerCase().includes(search)
+  );
+  const body = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+  document.getElementById('trackerTable').style.display = rows.length ? 'table' : 'none';
+  empty.style.display = rows.length ? 'none' : 'block';
+  body.innerHTML = rows.map(e => `
+    <tr>
+      <td data-label="Speaker"><div class="speaker-name">${escapeHtml(e.name)}</div>${e.notes ? `<div class="muted" title="${escapeHtml(e.notes)}">📝 ${escapeHtml(truncate(e.notes,40))}</div>` : ''}</td>
+      <td data-label="Topic" class="topic-cell">${escapeHtml(e.topic)||'<span class="muted">—</span>'}</td>
+      <td data-label="Format">${escapeHtml(e.format)}</td>
+      <td data-label="Source" class="muted">${escapeHtml(e.source)}</td>
+      <td data-label="Status">
+        <select class="status-select pill-${e.status}" onchange="handleStatusChange('${e.id}', this.value)">
+          ${STATUS_ORDER.map(s=>`<option value="${s}" ${s===e.status?'selected':''}>${STATUS_LABELS[s]}</option>`).join('')}
+        </select>
+      </td>
+      <td data-label="Owner">${escapeHtml(e.owner)||'<span class="muted">Unassigned</span>'}</td>
+      <td data-label="Episode date" class="muted">${e.date || '—'}</td>
+      <td data-label="">
+        <div class="row-actions">
+          <button class="icon-btn" onclick="editEntry('${e.id}')">Edit</button>
+          <button class="icon-btn danger" onclick="handleDelete('${e.id}')">Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('addBtn').addEventListener('click', ()=> openModal(null));
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+document.getElementById('saveBtn').addEventListener('click', handleSave);
+document.getElementById('f_status').addEventListener('change', toggleConsentVisibility);
+document.getElementById('searchInput').addEventListener('input', render);
+document.getElementById('ownerFilter').addEventListener('change', render);
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
+</script>
+</body>
+</html>
