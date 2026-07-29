@@ -140,7 +140,9 @@ Test mode (from Part 1) leaves the database open to anyone who finds the URL, an
            && d.name is string && d.name.size() > 0 && d.name.size() < 200
            && d.email is string && d.email.size() > 0 && d.email.size() < 200
            && d.topic is string && d.topic.size() < 3000
-           && d.notes is string && d.notes.size() < 3000;
+           && d.notes is string && d.notes.size() < 3000
+           && d.interactivity is list && d.interactivity.size() > 0 && d.interactivity.size() < 10
+           && d.format is list && d.format.size() > 0 && d.format.size() < 10;
        }
      }
    }

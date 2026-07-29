@@ -72,6 +72,13 @@
   .field textarea{ resize:vertical; min-height:80px; }
   .required-mark{ color:var(--rose); }
 
+  .checkbox-group{ display:flex; flex-direction:column; gap:8px; }
+  .checkbox-option{
+    display:flex; align-items:center; gap:8px; font-weight:400; font-size:13.5px;
+    color:var(--ink-soft); cursor:pointer;
+  }
+  .checkbox-option input{ width:auto; margin:0; accent-color:var(--ink); }
+
   /* Honeypot — hidden from real people, left empty; bots that auto-fill every
      field will trip it. Never shown, never required visually. */
   .hp-field{ position:absolute; left:-9999px; top:-9999px; opacity:0; height:0; overflow:hidden; }
@@ -123,20 +130,37 @@
       <textarea id="f_topic" required></textarea>
     </div>
     <div class="field">
-      <label>Format you'd be most comfortable with</label>
-      <div class="hint">Not sure? Pick "Other" and tell us more below — we'll help find the right fit.</div>
-      <select id="f_format">
-        <option>Interview</option>
-        <option>Ambassador-led workshop</option>
-        <option>Pitch showcase</option>
-        <option>Peer roundtable</option>
-        <option>Open Q&A</option>
-        <option>Other</option>
-      </select>
+      <label>Format(s) you'd be comfortable with <span class="required-mark">*</span></label>
+      <div class="hint">Check all that could work — not sure? Check "Other" and tell us more in the notes below.</div>
+      <div class="checkbox-group">
+        <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Interview"> Interview</label>
+        <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Ambassador-led workshop"> Ambassador-led workshop</label>
+        <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Pitch showcase"> Pitch showcase</label>
+        <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Peer roundtable"> Peer roundtable</label>
+        <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Open Q&A"> Open Q&A</label>
+        <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Other"> Other</label>
+      </div>
     </div>
     <div class="field">
-      <label>LinkedIn, portfolio, or website</label>
-      <input type="text" id="f_links" placeholder="Optional">
+      <label>Link to a past talk, or a 5-minute sample</label>
+      <div class="hint">A recording of a talk you've given before is ideal. No past talk yet? A quick 5-minute video of you sharing what you'd want to talk about works just as well.</div>
+      <input type="url" id="f_video" placeholder="YouTube, Google Drive, Loom, etc.">
+    </div>
+    <div class="field">
+      <label>How would you want your session to be interactive? <span class="required-mark">*</span></label>
+      <div class="hint">Check anything that sounds appealing — this just helps us plan, nothing is locked in.</div>
+      <div class="checkbox-group">
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Live Q&A"> Live Q&A</label>
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Polls / audience voting"> Polls or audience voting</label>
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Small group breakout discussion"> Small group breakout discussion</label>
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Hands-on exercise or demo"> Hands-on exercise or demo</label>
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Straight talk, minimal interaction"> Straight talk, minimal interaction</label>
+      </div>
+      <input type="text" id="f_interactivity_other" placeholder="Anything else in mind? (optional)" style="margin-top:10px;">
+    </div>
+    <div class="field">
+      <label>LinkedIn, portfolio, or website <span class="required-mark">*</span></label>
+      <input type="text" id="f_links" required>
     </div>
     <div class="field">
       <label>Anything else we should know?</label>
@@ -211,13 +235,22 @@ form.addEventListener('submit', async (e) => {
   const name = document.getElementById('f_name').value.trim();
   const email = document.getElementById('f_email').value.trim();
   const topic = document.getElementById('f_topic').value.trim();
-  const format = document.getElementById('f_format').value;
+  const format = Array.from(document.querySelectorAll('.format-opt:checked')).map(el => el.value);
+  const video = document.getElementById('f_video').value.trim();
   const links = document.getElementById('f_links').value.trim();
   const extraNotes = document.getElementById('f_notes').value.trim();
+  const interactivityChecked = Array.from(document.querySelectorAll('.interactivity-opt:checked')).map(el => el.value);
+  const interactivityOther = document.getElementById('f_interactivity_other').value.trim();
+  const interactivity = interactivityChecked.slice();
+  if (interactivityOther) interactivity.push(interactivityOther);
 
   if (!name || !email || !topic) { showError('Please fill in your name, email, and topic.'); return; }
+  if (!links) { showError('Please share a LinkedIn, portfolio, or website link.'); return; }
+  if (!format.length) { showError('Please check at least one format you\'d be comfortable with.'); return; }
+  if (!interactivity.length) { showError('Please check at least one interactivity option, or tell us in the "anything else" field.'); return; }
 
   const notesParts = [];
+  if (video) notesParts.push(`Sample/past talk: ${video}`);
   if (links) notesParts.push(`Links: ${links}`);
   if (extraNotes) notesParts.push(extraNotes);
 
@@ -230,6 +263,7 @@ form.addEventListener('submit', async (e) => {
       email,
       topic,
       format,
+      interactivity,
       source: 'Self-nominated (via form)',
       status: 'sourced',
       owner: '',

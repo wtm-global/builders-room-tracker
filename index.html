@@ -173,6 +173,19 @@
   .field-row .field{ flex:1; }
   .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
 
+  .checkbox-group{ display:flex; flex-direction:column; gap:8px; }
+  .checkbox-option{
+    display:flex; align-items:center; gap:8px; font-weight:400; font-size:13.5px;
+    color:var(--ink-soft); cursor:pointer;
+  }
+  .checkbox-option input{ width:auto; margin:0; accent-color:var(--ink); }
+
+  .tag{
+    display:inline-block; font-size:11px; font-family:'IBM Plex Mono', monospace;
+    background:var(--paper-dim); color:var(--ink-soft); border-radius:6px; padding:2px 7px;
+    margin:0 4px 4px 0;
+  }
+
   .toast{
     position:fixed; bottom:20px; right:20px; background:var(--ink); color:#fff; padding:10px 16px;
     border-radius:8px; font-size:13px; opacity:0; transform:translateY(8px); transition:all .25s;
@@ -219,6 +232,7 @@
 <div class="toolbar">
   <input type="text" id="searchInput" placeholder="Search speaker or topic…">
   <select id="ownerFilter"><option value="">All owners</option></select>
+  <select id="interactivityFilter"><option value="">All interactivity</option></select>
   <div class="spacer"></div>
   <span class="status-note"><span class="dot" id="statusDot"></span><span id="syncNote">Connecting…</span></span>
   <span class="status-note" id="whoAmI"></span>
@@ -232,7 +246,7 @@
   <table id="trackerTable">
     <thead>
       <tr>
-        <th>Speaker</th><th>Topic</th><th>Format</th><th>Source</th>
+        <th>Speaker</th><th>Topic</th><th>Format</th><th>Interactivity</th><th>Source</th>
         <th>Status</th><th>Owner</th><th>Episode date</th><th></th>
       </tr>
     </thead>
@@ -252,12 +266,15 @@
     <div class="field"><label>Speaker email</label><input type="email" id="f_email" placeholder="e.g. priya@example.com"></div>
     <div class="field"><label>Topic</label><input type="text" id="f_topic" placeholder="e.g. Moving from IC to engineering manager"></div>
     <div class="field-row">
-      <div class="field"><label>Format</label>
-        <select id="f_format">
-          <option>Interview</option><option>Ambassador-led workshop</option>
-          <option>Pitch showcase</option><option>Peer roundtable</option>
-          <option>Open Q&A</option><option>Other</option>
-        </select>
+      <div class="field"><label>Format(s)</label>
+        <div class="checkbox-group">
+          <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Interview"> Interview</label>
+          <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Ambassador-led workshop"> Ambassador-led workshop</label>
+          <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Pitch showcase"> Pitch showcase</label>
+          <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Peer roundtable"> Peer roundtable</label>
+          <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Open Q&A"> Open Q&A</label>
+          <label class="checkbox-option"><input type="checkbox" class="format-opt" value="Other"> Other</label>
+        </div>
       </div>
       <div class="field"><label>Source</label>
         <select id="f_source">
@@ -278,6 +295,17 @@
       <div class="field"><label>Owner (recruiting this speaker)</label><input type="text" id="f_owner" placeholder="e.g. Dana"></div>
     </div>
     <div class="field"><label>Episode date (if scheduled)</label><input type="date" id="f_date"></div>
+    <div class="field">
+      <label>Interactivity</label>
+      <div class="checkbox-group">
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Live Q&A"> Live Q&A</label>
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Polls / audience voting"> Polls or audience voting</label>
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Small group breakout discussion"> Small group breakout discussion</label>
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Hands-on exercise or demo"> Hands-on exercise or demo</label>
+        <label class="checkbox-option"><input type="checkbox" class="interactivity-opt" value="Straight talk, minimal interaction"> Straight talk, minimal interaction</label>
+      </div>
+      <input type="text" id="f_interactivity_other" placeholder="Anything else? (optional)" style="margin-top:10px;">
+    </div>
     <div class="field" id="consentField" style="display:none;">
       <label>Recording &amp; media consent</label>
       <select id="f_consent">
@@ -437,13 +465,34 @@ function openModal(entry){
   document.getElementById('f_name').value = entry ? entry.name || '' : '';
   document.getElementById('f_email').value = entry ? entry.email || '' : '';
   document.getElementById('f_topic').value = entry ? entry.topic || '' : '';
-  document.getElementById('f_format').value = entry ? entry.format || 'Interview' : 'Interview';
+  document.querySelectorAll('.format-opt').forEach(cb => { cb.checked = false; });
+  if (entry && entry.format) {
+    const formatValues = Array.isArray(entry.format) ? entry.format : [entry.format];
+    formatValues.forEach(v => {
+      const cb = document.querySelector(`.format-opt[value="${CSS.escape(v)}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
   document.getElementById('f_source').value = entry ? entry.source || 'Advocu' : 'Advocu';
   document.getElementById('f_status').value = entry ? entry.status || 'sourced' : 'sourced';
   document.getElementById('f_owner').value = entry ? entry.owner || '' : '';
   document.getElementById('f_date').value = entry ? (entry.date || '') : '';
   document.getElementById('f_notes').value = entry ? (entry.notes || '') : '';
   document.getElementById('f_consent').value = entry ? (entry.consent || 'not_requested') : 'not_requested';
+  document.querySelectorAll('.interactivity-opt').forEach(cb => { cb.checked = false; });
+  document.getElementById('f_interactivity_other').value = '';
+  if (entry && Array.isArray(entry.interactivity)) {
+    const standardValues = Array.from(document.querySelectorAll('.interactivity-opt')).map(cb => cb.value);
+    const extras = [];
+    entry.interactivity.forEach(v => {
+      if (standardValues.includes(v)) {
+        document.querySelector(`.interactivity-opt[value="${CSS.escape(v)}"]`).checked = true;
+      } else {
+        extras.push(v);
+      }
+    });
+    if (extras.length) document.getElementById('f_interactivity_other').value = extras.join(', ');
+  }
   document.getElementById('overlay').classList.add('open');
   toggleConsentVisibility();
 }
@@ -457,17 +506,24 @@ function toggleConsentVisibility(){
 async function handleSave(){
   const name = document.getElementById('f_name').value.trim();
   if(!name){ showToast('Speaker name is required'); return; }
+  const interactivityChecked = Array.from(document.querySelectorAll('.interactivity-opt:checked')).map(el => el.value);
+  const interactivityOtherRaw = document.getElementById('f_interactivity_other').value.trim();
+  const interactivity = interactivityChecked.slice();
+  if (interactivityOtherRaw) interactivityOtherRaw.split(',').map(s=>s.trim()).filter(Boolean).forEach(v => interactivity.push(v));
+  const format = Array.from(document.querySelectorAll('.format-opt:checked')).map(el => el.value);
+
   const data = {
     name,
     email: document.getElementById('f_email').value.trim(),
     topic: document.getElementById('f_topic').value.trim(),
-    format: document.getElementById('f_format').value,
+    format,
     source: document.getElementById('f_source').value,
     status: document.getElementById('f_status').value,
     owner: document.getElementById('f_owner').value.trim(),
     date: document.getElementById('f_date').value,
     notes: document.getElementById('f_notes').value.trim(),
-    consent: document.getElementById('f_consent').value
+    consent: document.getElementById('f_consent').value,
+    interactivity
   };
   if(editingId){ await updateEntry(editingId, data); showToast('Speaker updated'); }
   else{ await createEntry(data); showToast('Speaker added'); }
@@ -521,6 +577,15 @@ function renderOwnerFilter(){
   sel.innerHTML = '<option value="">All owners</option>' + owners.map(o=>`<option value="${o}">${o}</option>`).join('');
   sel.value = owners.includes(current) ? current : '';
 }
+function renderInteractivityFilter(){
+  const sel = document.getElementById('interactivityFilter');
+  const current = sel.value;
+  const all = new Set();
+  entries.forEach(e => { if (Array.isArray(e.interactivity)) e.interactivity.forEach(v => all.add(v)); });
+  const tags = Array.from(all).sort();
+  sel.innerHTML = '<option value="">All interactivity</option>' + tags.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  sel.value = tags.includes(current) ? current : '';
+}
 function truncate(str,n){ return str.length>n ? str.slice(0,n)+'…' : str; }
 function escapeHtml(str){
   if(str===undefined || str===null) return '';
@@ -529,11 +594,14 @@ function escapeHtml(str){
 function render(){
   renderFilters();
   renderOwnerFilter();
+  renderInteractivityFilter();
   const search = document.getElementById('searchInput').value.toLowerCase();
   const ownerFilter = document.getElementById('ownerFilter').value;
+  const interactivityFilter = document.getElementById('interactivityFilter').value;
   let rows = entries.slice().sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
   if(activeStatusFilter !== 'all') rows = rows.filter(e => e.status === activeStatusFilter);
   if(ownerFilter) rows = rows.filter(e => e.owner === ownerFilter);
+  if(interactivityFilter) rows = rows.filter(e => Array.isArray(e.interactivity) && e.interactivity.includes(interactivityFilter));
   if(search) rows = rows.filter(e =>
     (e.name||'').toLowerCase().includes(search) || (e.topic||'').toLowerCase().includes(search)
   );
@@ -545,7 +613,8 @@ function render(){
     <tr>
       <td data-label="Speaker"><div class="speaker-name">${escapeHtml(e.name)}</div>${e.email ? `<div class="muted" style="display:flex;align-items:center;gap:5px;">✉ ${escapeHtml(e.email)}<button class="icon-btn" style="padding:1px 6px;font-size:10px;" onclick="copyEmail('${escapeHtml(e.email).replace(/'/g,"\\'")}')">Copy</button></div>` : ''}${e.notes ? `<div class="muted" title="${escapeHtml(e.notes)}">📝 ${escapeHtml(truncate(e.notes,40))}</div>` : ''}</td>
       <td data-label="Topic" class="topic-cell">${escapeHtml(e.topic)||'<span class="muted">—</span>'}</td>
-      <td data-label="Format">${escapeHtml(e.format)}</td>
+      <td data-label="Format">${(Array.isArray(e.format) ? e.format : (e.format ? [e.format] : [])).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('') || '<span class="muted">—</span>'}</td>
+      <td data-label="Interactivity">${Array.isArray(e.interactivity) && e.interactivity.length ? e.interactivity.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('') : '<span class="muted">—</span>'}</td>
       <td data-label="Source" class="muted">${escapeHtml(e.source)}</td>
       <td data-label="Status">
         <select class="status-select pill-${e.status}" onchange="handleStatusChange('${e.id}', this.value)">
@@ -570,6 +639,7 @@ document.getElementById('saveBtn').addEventListener('click', handleSave);
 document.getElementById('f_status').addEventListener('change', toggleConsentVisibility);
 document.getElementById('searchInput').addEventListener('input', render);
 document.getElementById('ownerFilter').addEventListener('change', render);
+document.getElementById('interactivityFilter').addEventListener('change', render);
 document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
 </script>
 </body>
