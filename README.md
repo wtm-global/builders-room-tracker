@@ -4,7 +4,6 @@ A shared, real-time speaker/topic tracker for recruiting guests for *The Builder
 
 No coding experience required — just following steps and pasting values. Should take about 15–20 minutes.
 
-
 ---
 
 ## Part 1 — Create the database (Firebase)
@@ -106,7 +105,16 @@ Test mode (from Part 1) leaves the database open to anyone who finds the URL, an
      match /databases/{database}/documents {
 
        match /speakers/{docId} {
-         allow read, write: if isAllowed();
+         // Your signed-in, authorized team can read everything, and can
+         // update/delete any entry (e.g. moving status, deleting spam).
+         allow read, update, delete: if isAllowed();
+
+         // Anyone can CREATE a new entry — this is what lets the public
+         // intake form (Part 6) submit without signing in. It's locked
+         // down to only accept a submission shaped exactly like the form
+         // produces, so it can't be used to overwrite existing entries,
+         // change status to "published", or write arbitrary data.
+         allow create: if isAllowed() || isValidPublicSubmission();
        }
 
        // Guest allowlist — manage manually in the console (Part 4b below).
@@ -121,12 +129,25 @@ Test mode (from Part 1) leaves the database open to anyone who finds the URL, an
            || exists(/databases/$(database)/documents/allowlist/$(request.auth.token.email))
          );
        }
+
+       function isValidPublicSubmission() {
+         let d = request.resource.data;
+         return d.status == 'sourced'
+           && d.source == 'Self-nominated (via form)'
+           && d.owner == ''
+           && d.date == ''
+           && d.consent == 'not_requested'
+           && d.name is string && d.name.size() > 0 && d.name.size() < 200
+           && d.email is string && d.email.size() > 0 && d.email.size() < 200
+           && d.topic is string && d.topic.size() < 3000
+           && d.notes is string && d.notes.size() < 3000;
+       }
      }
    }
    ```
 5. Click **Publish** (top-right of the Rules editor). It should confirm the rules deployed within a few seconds — there's no additional "are you sure" step, but a small success indicator or timestamp update usually confirms it went through.
 
-With these rules, someone can sign in with any Google account, but Firestore will only hand back (or accept) data if their email matches the two domains above or is on the allowlist. Everyone else sees a clear "not authorized" message in the tracker and gets signed out automatically.
+With these rules, your signed-in team can read and manage everything as before. Separately, anyone — signed in or not — can submit *one specific shape* of new entry (matching exactly what the intake form in Part 6 sends), but can't read, edit, or delete anything already in the tracker. Everyone else attempting anything outside that shape gets rejected.
 
 ### Part 4b — Adding a guest (non-domain) email
 
@@ -174,6 +195,26 @@ To remove someone's access later, open the `allowlist` collection in the **Data*
 
 ---
 
+---
+
+## Part 6 — Public speaker intake form
+
+`apply.html` is a separate, public page — no sign-in required — where prospective speakers can submit themselves directly into your tracker as a new "Sourced" entry, tagged with source **"Self-nominated (via form)"** so you can spot them at a glance.
+
+1. It already has your real Firebase config copied in from `index.html`, so there's nothing to edit unless you're setting this up fresh — in that case, repeat Part 2's steps on this file too.
+2. Upload `apply.html` to the same GitHub repo as `index.html` (same **Add file → Upload files** step from Part 5). It needs to sit at the same root level, not in a subfolder.
+3. Once GitHub Pages redeploys, the form will be live at:
+   ```
+   https://<your-username>.github.io/<repo-name>/apply.html
+   ```
+4. That's the link to share — in an Advocu post, on LinkedIn, in a newsletter, wherever you'd want prospective speakers to find it. It works for anyone, with no Technovation/Iridescent Learning account needed.
+
+**What happens on submission:** a new entry appears in your tracker (`index.html`) automatically, status "Sourced," owner unassigned, ready for someone on your team to claim and follow up on. Because Part 4's rules only accept a submission shaped exactly like this form produces, it can't be used to edit or delete anything already in your tracker — worst case with spam is a junk entry showing up as "Sourced," which any signed-in team member can just delete like any other row.
+
+**A note on spam:** the honeypot field built into the form filters out the simplest automated bots, and the rules validation limits what a submission can even contain. It won't stop a determined human spammer, though. If that becomes a real problem, the next step up would be adding Google's reCAPTCHA or Firebase App Check to the form — that's more setup, so it's worth doing only if you actually need it.
+
+---
+
 ## Troubleshooting
 
 | What you see | Likely cause | Fix |
@@ -185,6 +226,7 @@ To remove someone's access later, open the `allowlist` collection in the **Data*
 | "This account isn't authorized for the tracker" | Signed-in email doesn't match either domain and isn't on the allowlist | Add them via Part 4b, or confirm they used the right email |
 | Rules published but still says not authorized | Browser cached the old sign-in state | Sign out, hard-refresh (Ctrl+Shift+R / Cmd+Shift+R), sign in again |
 | Page 404s right after enabling Pages | GitHub hasn't finished deploying yet | Wait 1–2 minutes and refresh |
+| Intake form submits but nothing shows up in the tracker | Rules weren't updated to Part 4's newer version with `isValidPublicSubmission()` | Re-check Firestore Rules match Part 4 exactly, and re-Publish |
 
 ---
 
