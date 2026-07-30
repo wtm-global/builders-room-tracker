@@ -125,6 +125,11 @@
       <input type="email" id="f_email" required>
     </div>
     <div class="field">
+      <label>Company or organization</label>
+      <div class="hint">Where you currently work, or your own company if you're independent. Optional.</div>
+      <input type="text" id="f_company" placeholder="Optional">
+    </div>
+    <div class="field">
       <label>What would you want to talk about? <span class="required-mark">*</span></label>
       <div class="hint">A project you built, a career move, a mistake you learned from — the more specific, the better.</div>
       <textarea id="f_topic" required></textarea>
@@ -234,6 +239,7 @@ form.addEventListener('submit', async (e) => {
 
   const name = document.getElementById('f_name').value.trim();
   const email = document.getElementById('f_email').value.trim();
+  const company = document.getElementById('f_company').value.trim();
   const topic = document.getElementById('f_topic').value.trim();
   const format = Array.from(document.querySelectorAll('.format-opt:checked')).map(el => el.value);
   const video = document.getElementById('f_video').value.trim();
@@ -261,6 +267,7 @@ form.addEventListener('submit', async (e) => {
     await addDoc(collection(db, 'speakers'), {
       name,
       email,
+      company,
       topic,
       format,
       interactivity,
